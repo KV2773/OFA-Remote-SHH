@@ -104,7 +104,7 @@ If you set `https://example.com/scripts`, the extension will fetch:
 - `https://example.com/scripts/macOS` for macOS systems
 - etc.
 
-**Default:** `https://raw.githubusercontent.com/KV2773/vscodium-server-script/main`
+**Default:** `https://github.com/KV2773/OFA-Remote-SHH/tree/main/scripts/AIX`
 
 ### SSH Configuration File
 
