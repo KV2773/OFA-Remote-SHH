@@ -29,7 +29,7 @@ Enable the extension in your `argv.json`
     ...
     "enable-proposed-api": [
         ...,
-        "jeanp413.open-remote-ssh",
+        "jeanp413.open-remote-ssh-dev",
     ]
     ...
 }
