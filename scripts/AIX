@@ -287,11 +287,11 @@ if [[ ! -f $SERVER_SCRIPT ]]; then
         echo "With: $NODE_PRE_DIR"
 
         # Count files to patch
-        FILE_COUNT=$\(find "$SERVER_DIR" -type f \( -name "*.sh" -o -name "*.js" -o -name "*.json" -o -name "*-server" \) -exec grep -l "/opt/nodejs" {} \; 2>/dev/null | wc -l \)
+        FILE_COUNT=$(find "$SERVER_DIR" -type f \( -name "*.sh" -o -name "*.js" -o -name "*.json" -o -name "*-server" \) -exec grep -l "/opt/nodejs" {} \; 2>/dev/null | wc -l)
         echo "Found $FILE_COUNT files to patch"
 
         if [[ $FILE_COUNT -gt 0 ]]; then
-            find "$SERVER_DIR" -type f  -name "*.sh" -o -name "*.js" -o -name "*.json" -o -name "*-server"  -exec grep -l "/opt/nodejs" {} \; 2>/dev/null | while read -r file; do
+            find "$SERVER_DIR" -type f \( -name "*.sh" -o -name "*.js" -o -name "*.json" -o -name "*-server" \) -exec grep -l "/opt/nodejs" {} \; 2>/dev/null | while read -r file; do
                 echo "  Patching: ${file#$SERVER_DIR/}"
                 sed -i.bak "s|/opt/nodejs|${NODE_PRE_DIR}|g" "$file"
                 rm -f "${file}.bak"
@@ -313,12 +313,12 @@ if [[ ! -f $SERVER_SCRIPT ]]; then
             
             # Update version and commit in product.json using perl for in-place editing
             # This ensures the AIX server (VSCodium build) reports the correct Bob IDE version
-            perl -i -pe "s/"version":s*"[^"]*"/"version": "$DISTRO_VERSION"/" "$SERVER_DIR/product.json"
-            perl -i -pe "s/"commit":s*"[^"]*"/"commit": "$DISTRO_COMMIT"/" "$SERVER_DIR/product.json"
+            perl -i -pe "s/\"version\":\s*\"[^\"]*\"/\"version\": \"$DISTRO_VERSION\"/" "$SERVER_DIR/product.json"
+            perl -i -pe "s/\"commit\":\s*\"[^\"]*\"/\"commit\": \"$DISTRO_COMMIT\"/" "$SERVER_DIR/product.json"
             
             echo "✓ product.json patched successfully"
             echo "Verification:"
-            grep -E '(commit|version)' "$SERVER_DIR/product.json" | head -5
+            grep -E "(commit|version)" "$SERVER_DIR/product.json" | head -5
             echo "Backup saved: product.json.backup"
         else
             echo "Warning: product.json not found at $SERVER_DIR/product.json"
@@ -328,7 +328,7 @@ if [[ ! -f $SERVER_SCRIPT ]]; then
         if [[ -f "$SERVER_DIR/package.json" ]]; then
             echo "Updating package.json version..."
             cp "$SERVER_DIR/package.json" "$SERVER_DIR/package.json.backup"
-            perl -i -pe "s/"version":s*"[^"]*"/"version": "$DISTRO_VERSION"/" "$SERVER_DIR/package.json"
+            perl -i -pe "s/\"version\":\s*\"[^\"]*\"/\"version\": \"$DISTRO_VERSION\"/" "$SERVER_DIR/package.json"
             echo "✓ package.json updated"
         fi
         
