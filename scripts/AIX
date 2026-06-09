@@ -253,13 +253,6 @@ resolve_nodejs() {
     return 1
 }
 
-# Run Node.js resolution unconditionally (needed both for fresh install and server launch)
-if [[ $PLATFORM == "aix" ]]; then
-    resolve_nodejs || print_install_results_and_exit 1
-    log "Active Node.js: $NODE_EXE ($("$NODE_EXE" --version 2>&1))"
-fi
-
-
 # adjust platform for vscodium download, if needed
 if [[ $OS_RELEASE_ID = alpine ]]; then
     PLATFORM=$OS_RELEASE_ID
@@ -273,6 +266,31 @@ if [[ $PLATFORM == "aix" ]]; then
 
     echo "Downloading VSCodium server for AIX from GitHub..."
     echo "URL: $SERVER_DOWNLOAD_URL"
+    resolve_nodejs || print_install_results_and_exit 1
+
+    # NODE_EXE is set inside the function — re-export PATH in the *current* shell so
+    # the server process inherits it. (export inside a function only affects that scope
+    # on AIX bash/ksh.)
+    NODE_BIN_DIR="$(dirname "$NODE_EXE")"
+    export PATH="$NODE_BIN_DIR:$PATH"
+    log "Active Node.js: $NODE_EXE ($("$NODE_EXE" --version 2>&1))"
+    log "Exported PATH with Node: $NODE_BIN_DIR"
+
+    # Persist Node.js PATH into .bashrc so future SSH sessions find it automatically
+    _BASHRC="$HOME/.bashrc"
+    _NODE_MARKER="# === Bob IDE: Node.js PATH ==="
+    [ ! -f "$_BASHRC" ] && touch "$_BASHRC"
+    if ! grep -Fq "$_NODE_MARKER" "$_BASHRC"; then
+        cat >> "$_BASHRC" <<EOF
+
+$_NODE_MARKER
+export PATH="$NODE_BIN_DIR:\$PATH"
+# === End Bob IDE: Node.js PATH ===
+EOF
+        log "Added Node.js PATH to $_BASHRC"
+    else
+        log "Node.js PATH already present in $_BASHRC"
+    fi
 else
     # Original VSCodium/VSCODE URL for other platforms
     SERVER_DOWNLOAD_URL="$(echo "${SERVER_DOWNLOAD_URL_TEMPLATE}" | sed "s/\\\${quality}/$DISTRO_QUALITY/g" | sed "s/\\\${version}/$DISTRO_VERSION/g" | sed "s/\\\${commit}/$DISTRO_COMMIT/g" | sed "s/\\\${os}/$PLATFORM/g" | sed "s/\\\${arch}/$SERVER_ARCH/g" | sed "s/\\\${release}/$DISTRO_VSCODIUM_RELEASE/g")"
