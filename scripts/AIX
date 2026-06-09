@@ -163,7 +163,7 @@ fi
 # Build server download URL
 if [[ $PLATFORM == "aix" ]]; then
     # For AIX, use the VSCodium build version (e.g. 1.105.17075), not the upstream VS Code version (1.105.1)
-    DISTRO_FULL_VERSION=DISTRO_VERSION+DISTRO_VSCODIUM_RELEASE
+    DISTRO_FULL_VERSION=${DISTRO_VERSION}+${DISTRO_VSCODIUM_RELEASE}
     SERVER_DOWNLOAD_URL="https://github.com/KV2773/vscodium/releases/download/${DISTRO_FULL_VERSION}/vscodium-server.tar.gz"
 
     echo "Downloading VSCodium server for AIX from GitHub..."
