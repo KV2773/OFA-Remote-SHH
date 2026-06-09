@@ -541,8 +541,10 @@ for _i in 1 2 3 4 5 6 7 8 9 10; do
 done
 SELF_DIR="\$(cd "\$(dirname "\$_self")" && pwd)"
 
-# bin/remote-cli/codium  →  ../../..  =  server package root
-ROOT="\$(cd "\$SELF_DIR/../../.." && pwd)"
+# bin/remote-cli/codium
+#   SELF_DIR = $SERVER_DIR/bin/remote-cli
+#   ../..    = $SERVER_DIR  (where aix-platform-override.js and out/ live)
+ROOT="$SERVER_DIR"
 
 APP_NAME="codium"
 VERSION="${DISTRO_VERSION}"
