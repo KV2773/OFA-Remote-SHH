@@ -442,7 +442,7 @@ if [[ -f $SERVER_LOGFILE ]]; then
         if [[ -n $LISTENING_ON ]]; then
             break
         fi
-        sleep 0.5
+        sleep 1
     done
 
     if [[ -z $LISTENING_ON ]]; then
