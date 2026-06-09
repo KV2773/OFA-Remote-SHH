@@ -222,55 +222,62 @@ if [[ ! -f $SERVER_SCRIPT ]]; then
     fi
 
     # Special handling for AIX server wrapper
-    if [[ $PLATFORM == "aix" ]]; then
-        # Detect Node.js from multiple possible locations
-        NODE_PATH=""
-        
-        # First, check if node is in PATH
-        if command -v node >/dev/null 2>&1; then
-            NODE_PATH="$(command -v node)"
-            echo "Found Node.js in PATH: $NODE_PATH"
-        fi
-        
-        # If not in PATH, check common system locations
-        if [[ -z "$NODE_PATH" ]]; then
-            for node_location in "/opt/nodejs/bin/node" "/usr/bin/node" "/usr/local/bin/node"; do
-                if [[ -x "$node_location" ]]; then
-                    NODE_PATH="$node_location"
-                    echo "Found system Node.js at $NODE_PATH"
-                    break
-                fi
-            done
-        fi
-        
-        # If still not found, check for downloaded Node.js in home directory
-        if [[ -z "$NODE_PATH" ]]; then
-            EXISTING_NODE=$(find "$HOME" -maxdepth 1 -type d -name "node-v*-aix-ppc64" 2>/dev/null | head -1)
+        if [[ $PLATFORM == "aix" ]]; then
+            # Detect Node.js from multiple possible locations
+            NODE_EXE=""
             
-            if [[ -n "$EXISTING_NODE" ]] && [[ -x "$EXISTING_NODE/bin/node" ]]; then
-                echo "Found existing Node.js at $EXISTING_NODE"
-                export PATH="$EXISTING_NODE/bin:$PATH"
-                NODE_PATH="$EXISTING_NODE/bin/node"
+            # First, check if node is in PATH
+            if command -v node >/dev/null 2>&1; then
+                NODE_EXE="$(command -v node)"
+                echo "Found Node.js in PATH: $NODE_EXE"
+            fi
+            
+            # If not in PATH, check common system locations
+            if [[ -z "$NODE_EXE" ]]; then
+                for node_location in "/opt/nodejs/bin/node" "/usr/bin/node" "/usr/local/bin/node"; do
+                    if [[ -x "$node_location" ]]; then
+                        NODE_EXE="$node_location"
+                        echo "Found system Node.js at $NODE_EXE" > "$SERVER_LOGFILE"
+                        break
+                    fi
+                done
+            fi
+            
+            # If still not found, check for downloaded Node.js in home directory
+            if [[ -z "$NODE_EXE" ]]; then
+                EXISTING_NODE=$(find "$HOME" -maxdepth 1 -type d -name "node-v*-aix-ppc64" 2>/dev/null | head -1)
+                
+                if [[ -n "$EXISTING_NODE" ]] && [[ -x "$EXISTING_NODE/bin/node" ]]; then
+                    echo "Found existing Node.js at $EXISTING_NODE" > "$SERVER_LOGFILE"
+                    export PATH="$EXISTING_NODE/bin:$PATH"
+                    NODE_EXE="$EXISTING_NODE/bin/node"
+                else
+                    # Download new Node.js as last resort
+                    cd "$HOME"
+                    echo "Node.js not found, downloading and installing..." > "$SERVER_LOGFILE"
+                    
+                    VERSION="v22.22.3"
+                    DIR_NAME="node-$VERSION-aix-ppc64"
+                    
+                    wget --tries=3 --timeout=10 --continue --no-verbose -O "$DIR_NAME.tar.gz" "https://nodejs.org/dist/$VERSION/node-$VERSION-aix-ppc64.tar.gz"
+                    tar -xzf "$DIR_NAME.tar.gz" -C "$HOME/"
+                    rm -f "$DIR_NAME.tar.gz"
+                    
+                    export PATH="$HOME/$DIR_NAME/bin:$PATH"
+                    NODE_EXE="$HOME/$DIR_NAME/bin/node"
+                fi
+            fi
+            
+            # Verify Node.js is now available
+            if [[ -n "$NODE_EXE" ]] && [[ -x "$NODE_EXE" ]]; then
+                echo "Using Node.js: $NODE_EXE" > "$SERVER_LOGFILE"
+                "$NODE_EXE" --version
             else
-                # Download new Node.js as last resort
-                cd "$HOME/"
-                echo "Node.js not found, downloading and installing..."
-                wget --tries=3 --timeout=10 --continue --no-verbose -O node-v24.14.0-aix-ppc64.tar.gz https://nodejs.org/dist/v24.14.0/node-v24.14.0-aix-ppc64.tar.gz
-                tar -xzf node-v24.14.0-aix-ppc64.tar.gz -C "$HOME/"
-                rm -f node-v24.14.0-aix-ppc64.tar.gz
-                export PATH="$HOME/node-v24.14.0-aix-ppc64/bin:$PATH"
-                NODE_PATH="$HOME/node-v24.14.0-aix-ppc64/bin/node"
+                echo "ERROR: Could not find or install Node.js" > "$SERVER_LOGFILE"
+                print_install_results_and_exit 1
             fi
         fi
-        
-        # Verify Node.js is now available
-        if [[ -n "$NODE_PATH" ]] && [[ -x "$NODE_PATH" ]]; then
-            echo "Using Node.js: $NODE_PATH"
-            "$NODE_PATH" --version
-        else
-            echo "ERROR: Could not find or install Node.js"
-            print_install_results_and_exit 1
-        fi
+
 
         # Ensure the AIX server wrapper is executable
         if [[ -f "$SERVER_DIR/bin/codium-server" ]]; then
