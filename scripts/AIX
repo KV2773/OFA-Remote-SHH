@@ -143,6 +143,8 @@ if [[ $PLATFORM == "aix" ]]; then
     export PATH="/opt/freeware/bin:$PATH"
 fi
 
+
+
 # Handle OS release detection
 if [[ $PLATFORM == "aix" ]]; then
     OS_RELEASE_ID="aix"
@@ -174,6 +176,89 @@ INSTALL_LOGFILE="$SERVER_DATA_DIR/install.log"
 log() {
     echo "$*" | tee -a "$INSTALL_LOGFILE"
 }
+
+
+# =============================================================================
+# resolve_nodejs: find (or download) Node.js and export NODE_EXE + updated PATH
+# This runs UNCONDITIONALLY on every launch so the server always has Node in PATH.
+# =============================================================================
+resolve_nodejs() {
+    NODE_EXE=""
+
+    # Probe 1: node already in PATH
+    if command -v node >/dev/null 2>&1; then
+        NODE_EXE="$(command -v node)"
+        log "Node.js probe 1 (PATH): $NODE_EXE"
+        return 0
+    fi
+
+    # Probe 2: exact path used by cve_scan_mend*.sh
+    #   NODE_BIN="$SCRIPT_DIR/../../node-v22.22.3-aix-ppc64/bin/node"
+    #   = one level above the project root
+    local _sib="$(dirname "$PROJECT_ROOT")/node-v22.22.3-aix-ppc64/bin/node"
+    if [[ -x "$_sib" ]]; then
+        NODE_EXE="$_sib"
+        export PATH="$(dirname "$_sib"):$PATH"
+        log "Node.js probe 2 (sibling): $NODE_EXE"
+        return 0
+    fi
+    log "Node.js probe 2 miss: $_sib"
+
+    # Probe 3: common AIX system locations
+    for _loc in "/opt/nodejs/bin/node" "/opt/freeware/bin/node" \
+                "/usr/bin/node" "/usr/local/bin/node"; do
+        if [[ -x "$_loc" ]]; then
+            NODE_EXE="$_loc"
+            export PATH="$(dirname "$_loc"):$PATH"
+            log "Node.js probe 3 (system): $NODE_EXE"
+            return 0
+        fi
+        log "Node.js probe 3 miss: $_loc"
+    done
+
+    # Probe 4: glob for any previously extracted tarball under HOME or parent-of-project
+    for _root in "$(dirname "$PROJECT_ROOT")" "$HOME"; do
+        local _found
+        _found=$(find "$_root" -maxdepth 2 -type d -name "node-v*-aix-ppc64" 2>/dev/null | head -1)
+        if [[ -n "$_found" && -x "$_found/bin/node" ]]; then
+            NODE_EXE="$_found/bin/node"
+            export PATH="$_found/bin:$PATH"
+            log "Node.js probe 4 (find): $NODE_EXE"
+            return 0
+        fi
+    done
+    log "Node.js probe 4 miss: no node-v*-aix-ppc64 dir under $(dirname "$PROJECT_ROOT") or $HOME"
+
+    # Probe 5: download as absolute last resort
+    local _ver="v22.22.3"
+    local _dir="node-$_ver-aix-ppc64"
+    local _dest="$(dirname "$PROJECT_ROOT")"
+    log "Node.js probe 5: downloading $_ver to $_dest ..."
+    wget --tries=3 --timeout=30 --continue --no-verbose \
+        -O "$HOME/$_dir.tar.gz" \
+        "https://nodejs.org/dist/$_ver/$_dir.tar.gz" 2>&1 | tee -a "$INSTALL_LOGFILE"
+    if [[ $? -eq 0 ]]; then
+        tar -xzf "$HOME/$_dir.tar.gz" -C "$_dest/"
+        rm -f "$HOME/$_dir.tar.gz"
+        NODE_EXE="$_dest/$_dir/bin/node"
+        export PATH="$_dest/$_dir/bin:$PATH"
+        log "Node.js probe 5 installed: $NODE_EXE"
+        return 0
+    fi
+
+    log "ERROR: Node.js not found at any known location"
+    log "  Tried: PATH, $_sib, /opt/nodejs, /opt/freeware/bin, /usr/bin, /usr/local/bin,"
+    log "         find(maxdepth=2) under $(dirname "$PROJECT_ROOT") and $HOME, wget download"
+    log "  Install Node.js $($_ver) manually and re-run."
+    return 1
+}
+
+# Run Node.js resolution unconditionally (needed both for fresh install and server launch)
+if [[ $PLATFORM == "aix" ]]; then
+    resolve_nodejs || print_install_results_and_exit 1
+    log "Active Node.js: $NODE_EXE ($("$NODE_EXE" --version 2>&1))"
+fi
+
 
 # adjust platform for vscodium download, if needed
 if [[ $OS_RELEASE_ID = alpine ]]; then
